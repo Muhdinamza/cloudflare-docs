@@ -7,6 +7,8 @@ head:
 description: Use a configuration file to customize the
   development and deployment setup for your Worker project and other Developer
   Platform products.
+products:
+  - workers
 ---
 
 import {
@@ -40,26 +42,40 @@ It is best practice to treat Wrangler's configuration file as the [source of tru
 
 <WranglerConfig>
 
-```toml
-# Top-level configuration
-name = "my-worker"
-main = "src/index.js"
-compatibility_date = "2022-07-12"
-
-workers_dev = false
-route = { pattern = "example.org/*", zone_name = "example.org" }
-
-kv_namespaces = [
-  { binding = "<MY_NAMESPACE>", id = "<KV_ID>" }
-]
-
-[env.staging]
-name = "my-worker-staging"
-route = { pattern = "staging.example.org/*", zone_name = "example.org" }
-
-kv_namespaces = [
-  { binding = "<MY_NAMESPACE>", id = "<STAGING_KV_ID>" }
-]
+```jsonc
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	// Top-level configuration
+	"name": "my-worker",
+	"main": "src/index.js",
+	"compatibility_date": "$today",
+	"workers_dev": false,
+	"route": {
+		"pattern": "example.org/*",
+		"zone_name": "example.org",
+	},
+	"kv_namespaces": [
+		{
+			"binding": "<MY_NAMESPACE>",
+			"id": "<KV_ID>",
+		},
+	],
+	"env": {
+		"staging": {
+			"name": "my-worker-staging",
+			"route": {
+				"pattern": "staging.example.org/*",
+				"zone_name": "example.org",
+			},
+			"kv_namespaces": [
+				{
+					"binding": "<MY_NAMESPACE>",
+					"id": "<STAGING_KV_ID>",
+				},
+			],
+		},
+	},
+}
 ```
 
 </WranglerConfig>
@@ -92,12 +108,16 @@ This currently works for KV, R2, and D1 bindings.
 
 To use this feature, add bindings to your configuration file _without_ adding resource IDs, or in the case of R2, a bucket name. Resources will be created with the name of your worker as the prefix.
 
-<WranglerConfig removeSchema>
+<WranglerConfig>
 
-```toml
-kv_namespaces = [
-  { binding = "<MY_KV_NAMESPACE>" }
-]
+```jsonc
+{
+	"kv_namespaces": [
+		{
+			"binding": "<MY_KV_NAMESPACE>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -118,6 +138,10 @@ Top-level keys apply to the Worker as a whole (and therefore all environments). 
 
 - `send_metrics` <Type text="boolean" /> <MetaInfo text="optional" />
   - Whether Wrangler should send usage data to Cloudflare for this project. Defaults to `true`. You can learn more about this in our [data policy](https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md).
+
+- `dependencies_instrumentation` <Type text="object" /> <MetaInfo text="optional" />
+  - Configures npm package dependency instrumentation when deploying or uploading a Worker version. Defaults to enabled.
+  - `enabled` <Type text="boolean" /> — Whether Wrangler should collect and send npm package dependency metadata (package names and versions). Defaults to `true`.
 
 - `site` <Type text="object" /> <MetaInfo text="optional deprecated" />
   - See the [Workers Sites](#workers-sites) section below for more information. Cloudflare Pages and Workers Assets is preferred over this approach.
@@ -153,7 +177,7 @@ The `main` key is optional for assets-only Workers.
   - Enables use of `*.workers.dev` subdomain to deploy your Worker. If you have a Worker that is only for `scheduled` events, you can set this to `false`. Defaults to `true`. Refer to [types of routes](#types-of-routes).
 
 - `preview_urls` <Type text="boolean" /> <MetaInfo text="optional" />
-  - Enables use of Preview URLs to test your Worker. Defaults to value of `workers_dev`. Refer to [Preview URLs](/workers/configuration/previews).
+  - Enables use of Preview URLs to test your Worker. Defaults to value of `workers_dev`. Refer to [Preview URLs](/workers/versions-and-deployments/preview-urls/).
 
 - `route` <Type text="Route" /> <MetaInfo text="optional" />
   - A route that your Worker should be deployed to. Only one of `routes` or `route` is required. Refer to [types of routes](#types-of-routes).
@@ -218,10 +242,10 @@ The `main` key is optional for assets-only Workers.
   - Configures static assets that will be served. Refer to [Assets](/workers/static-assets/binding/) for more details.
 
 * `migrations` <Type text="object"/> <MetaInfo text="optional"/>
-  - Maps a Durable Object from a class name to a runtime state. This communicates changes to the Durable Object (creation / deletion / rename / transfer) to the Workers runtime and provides the runtime with instructions on how to deal with those changes. Refer to [Durable Objects migrations](/durable-objects/reference/durable-objects-migrations/#durable-object-migrations-in-wranglertoml).
+  - Maps a Durable Object from a class name to a runtime state. This communicates changes to the Durable Object (creation / deletion / rename / transfer) to the Workers runtime and provides the runtime with instructions on how to deal with those changes. Refer to [Durable Objects migrations](/durable-objects/reference/durable-objects-migrations/#migration-wrangler-configuration).
 
 * `placement` <Type text="object"/> <MetaInfo text="optional"/>
-  - Configures where your Worker runs to minimize latency to back-end services. Refer to [Placement](/workers/configuration/smart-placement/).
+  - Configures where your Worker runs to minimize latency to back-end services. Refer to [Placement](/workers/configuration/placement/).
   - `mode` <Type text="string"/> — Set to `"smart"` to automatically place your Worker near back-end services based on observed latency.
   - `region` <Type text="string"/> — Specify a cloud region (for example, `"aws:us-east-1"`, `"gcp:europe-west1"`, or `"azure:westeurope"`) to place your Worker near infrastructure in that region.
   - `host` <Type text="string"/> — Specify a hostname and port for a single-homed layer 4 service (for example, `"my_database_host.com:5432"`) to place your Worker near that service.
@@ -247,14 +271,33 @@ Non-inheritable keys are configurable at the top-level, but cannot be inherited 
 - `r2_buckets` <Type text="object" /> <MetaInfo text="optional" />
   - A list of R2 buckets that your Worker should be bound to. Refer to [R2 buckets](#r2-buckets).
 
+- `ai_search_namespaces` <Type text="object" /> <MetaInfo text="optional" />
+  - A list of AI Search namespaces that your Worker should be bound to. Refer to [AI Search namespaces](#ai-search-namespaces).
+
+- `ai_search` <Type text="object" /> <MetaInfo text="optional" />
+  - A list of AI Search instance bindings bound directly to pre-existing instances in the default namespace. Refer to [AI Search instances](#ai-search-instances).
+
 - `vectorize` <Type text="object" /> <MetaInfo text="optional" />
   - A list of Vectorize indexes that your Worker should be bound to. Refer to [Vectorize indexes](#vectorize-indexes).
 
 - `services` <Type text="object" /> <MetaInfo text="optional" />
   - A list of service bindings that your Worker should be bound to. Refer to [service bindings](#service-bindings).
 
+- `queues` <Type text="object" /> <MetaInfo text="optional" />
+  - A list of Queue producers and consumers that your Worker should be bound to. Refer to [Queues](#queues).
+
+- `workflows` <Type text="object" /> <MetaInfo text="optional" />
+  - A list of Workflows that your Worker should be bound to. Refer to [Workflows](#workflows).
+
 - `tail_consumers` <Type text="object" /> <MetaInfo text="optional" />
   - A list of the Tail Workers your Worker sends data to. Refer to [Tail Workers](/workers/observability/logs/tail-workers/).
+
+- `secrets` <Type text="object" /> <MetaInfo text="optional" />
+  - Declares the secret names your Worker requires. Used for validation during local development and deploy, and as the source of truth for type generation. Refer to [Secrets](#secrets).
+  - `required` <Type text="string[]" /> <MetaInfo text="optional" /> — A list of secret names that must be set to deploy your Worker.
+
+- `secrets_store_secrets` <Type text="object" /> <MetaInfo text="optional" />
+  - A list of Secrets Store bindings that your worker should be bound to. Refer to [Secrets Store](/secrets-store/).
 
 ## Types of routes
 
@@ -274,10 +317,15 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[routes]]
-pattern = "shop.example.com"
-custom_domain = true
+```jsonc
+{
+	"routes": [
+		{
+			"pattern": "shop.example.com",
+			"custom_domain": true,
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -298,10 +346,15 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[routes]]
-pattern = "subdomain.example.com/*"
-zone_id = "<YOUR_ZONE_ID>"
+```jsonc
+{
+	"routes": [
+		{
+			"pattern": "subdomain.example.com/*",
+			"zone_id": "<YOUR_ZONE_ID>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -318,10 +371,15 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[routes]]
-pattern = "subdomain.example.com/*"
-zone_name = "example.com"
+```jsonc
+{
+	"routes": [
+		{
+			"pattern": "subdomain.example.com/*",
+			"zone_name": "example.com",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -334,8 +392,10 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-route = "example.com/*"
+```jsonc
+{
+	"route": "example.com/*",
+}
 ```
 
 </WranglerConfig>
@@ -349,8 +409,10 @@ Cloudflare Workers accounts come with a `workers.dev` subdomain that is configur
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-workers_dev = false
+```jsonc
+{
+	"workers_dev": false,
+}
 ```
 
 </WranglerConfig>
@@ -367,9 +429,12 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[triggers]
-crons = ["* * * * *"]
+```jsonc
+{
+	"triggers": {
+		"crons": ["* * * * *"],
+	},
+}
 ```
 
 </WranglerConfig>
@@ -388,10 +453,13 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[observability]
-enabled = true
-head_sampling_rate = 0.1 # 10% of requests are logged
+```jsonc
+{
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 0.1, // 10% of requests are logged
+	},
+}
 ```
 
 </WranglerConfig>
@@ -417,11 +485,14 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[build]
-command = "npm run build"
-cwd = "build_cwd"
-watch_dir = "build_watch_dir"
+```jsonc
+{
+	"build": {
+		"command": "npm run build",
+		"cwd": "build_cwd",
+		"watch_dir": "build_watch_dir",
+	},
+}
 ```
 
 </WranglerConfig>
@@ -437,22 +508,29 @@ can be set to a maximum of 300,000 milliseconds (5 minutes).
 - `cpu_ms` <Type text="number" /> <MetaInfo text="optional" />
   - The maximum CPU time allowed per invocation, in milliseconds.
 
+- `subrequests` <Type text="number" /> <MetaInfo text="optional" />
+  - The maximum number of subrequests allowed per invocation. This value defaults to 50 for free accounts and 10,000 for paid accounts. The free account maximum is 50 and the paid account maximum is 10,000,000. Refer to [subrequest limits](/workers/platform/limits/#subrequests) for more information.
+
 Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[limits]
-cpu_ms = 100
+```jsonc
+{
+	"limits": {
+		"cpu_ms": 100,
+		"subrequests": 150,
+	},
+}
 ```
 
 </WranglerConfig>
 
 ## Bindings
 
-### Browser Rendering
+### Browser Run
 
-The [Workers Browser Rendering API](/browser-rendering/) allows developers to programmatically control and interact with a headless browser instance and create automation flows for their applications and products.
+The [Workers Browser Run API](/browser-run/) allows developers to programmatically control and interact with a headless browser instance and create automation flows for their applications and products.
 
 A [browser binding](/workers/runtime-apis/bindings/) will provide your Worker with an authenticated endpoint to interact with a dedicated Chromium browser instance.
 
@@ -463,9 +541,12 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[browser]
-binding = "<BINDING_NAME>"
+```jsonc
+{
+	"browser": {
+		"binding": "<BINDING_NAME>",
+	},
+}
 ```
 
 </WranglerConfig>
@@ -490,11 +571,16 @@ To bind D1 databases to your Worker, assign an array of the below object to the 
 
 - `migrations_dir` <Type text="string" /> <MetaInfo text="optional" />
   - The migration directory containing the migration files. By default, `wrangler d1 migrations create` creates a folder named `migrations`. You can use `migrations_dir` to specify a different folder containing the migration files (for example, if you have a mono-repo setup, and want to use a single D1 instance across your apps/packages).
-  - For more information, refer to [D1 Wrangler `migrations` commands](/workers/wrangler/commands/#migrations-create) and [D1 migrations](/d1/reference/migrations/).
+  - For more information, refer to [D1 Wrangler `migrations` commands](/workers/wrangler/commands/d1/#d1-migrations-create) and [D1 migrations](/d1/reference/migrations/).
+
+- `migrations_pattern` <Type text="string" /> <MetaInfo text="optional" />
+  - A glob pattern (relative to your Wrangler config file) used to discover migration files. Defaults to `migrations/*.sql`.
+  - Use this to opt in to nested layouts produced by ORMs like Drizzle (for example, `migrations/*/migration.sql`).
+  - When `migrations_pattern` is set, `migrations_dir` must also be set, and `migrations_pattern` must start with whatever `migrations_dir` is set to. Each migration is recorded in the migrations table as a path relative to `migrations_dir`.
 
 :::note
 
-When using Wrangler in the default local development mode, files will be written to local storage instead of the preview or production database. Refer to [Local development and testing](/workers/development-testing/) for more details.
+When using Wrangler in the default local development mode, files will be written to local storage instead of the preview or production database. Refer to [Local development](/workers/local-development/) for more details.
 
 :::
 
@@ -502,11 +588,16 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[d1_databases]]
-binding = "<BINDING_NAME>"
-database_name = "<DATABASE_NAME>"
-database_id = "<DATABASE_ID>"
+```jsonc
+{
+	"d1_databases": [
+		{
+			"binding": "<BINDING_NAME>",
+			"database_name": "<DATABASE_NAME>",
+			"database_id": "<DATABASE_ID>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -527,12 +618,19 @@ Dispatch namespace bindings allow for communication between a [dynamic dispatch 
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[dispatch_namespaces]]
-binding = "<BINDING_NAME>"
-namespace = "<NAMESPACE_NAME>"
-outbound = {service = "<WORKER_NAME>", parameters = ["params_object"]}
-
+```jsonc
+{
+	"dispatch_namespaces": [
+		{
+			"binding": "<BINDING_NAME>",
+			"namespace": "<NAMESPACE_NAME>",
+			"outbound": {
+				"service": "<WORKER_NAME>",
+				"parameters": ["params_object"],
+			},
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -559,11 +657,17 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[durable_objects.bindings]]
-name = "<BINDING_NAME>"
-class_name = "<CLASS_NAME>"
-
+```jsonc
+{
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "<BINDING_NAME>",
+				"class_name": "<CLASS_NAME>",
+			},
+		],
+	},
+}
 ```
 
 </WranglerConfig>
@@ -588,15 +692,32 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[migrations]]
-tag = "v1" # Should be unique for each entry
-new_sqlite_classes = ["DurableObjectExample"] # Array of new classes
-
-[[migrations]]
-tag = "v2"
-renamed_classes = [{from = "DurableObjectExample", to = "UpdatedName" }] # Array of rename directives
-deleted_classes = ["DeprecatedClass"] # Array of deleted class names
+```jsonc
+{
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				// Array of new classes
+				"DurableObjectExample",
+			],
+		},
+		{
+			"tag": "v2", // Should be unique for each entry
+			"renamed_classes": [
+				// Array of rename directives
+				{
+					"from": "DurableObjectExample",
+					"to": "UpdatedName",
+				},
+			],
+			"deleted_classes": [
+				// Array of deleted class names
+				"DeprecatedClass",
+			],
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -615,10 +736,10 @@ deleted_classes = ["DeprecatedClass"] # Array of deleted class names
   - The binding name.
 
 - `destination_address` <Type text="string" /> <MetaInfo text="optional" />
-  - The [chosen email address](/email-routing/email-workers/send-email-workers/#types-of-bindings) you send emails to.
+  - The [chosen email address](/email-service/configuration/send-bindings/#binding-types) you send emails to.
 
 - `allowed_destination_addresses` <Type text="string[]" /> <MetaInfo text="optional" />
-  - The [allowlist of email addresses](/email-routing/email-workers/send-email-workers/#types-of-bindings) you send emails to.
+  - The [allowlist of email addresses](/email-service/configuration/send-bindings/#binding-types) you send emails to.
 
 <Render file="types-bindings" product="email-routing" />
 
@@ -644,20 +765,24 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-# required for database drivers to function
-compatibility_flags = ["nodejs_compat_v2"]
-
-[[hyperdrive]]
-binding = "<BINDING_NAME>"
-id = "<ID>"
+```jsonc
+{
+	// required for database drivers to function
+	"compatibility_flags": ["nodejs_compat_v2"],
+	"hyperdrive": [
+		{
+			"binding": "<BINDING_NAME>",
+			"id": "<ID>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
 
 ### Images
 
-[Cloudflare Images](/images/transform-images/transform-via-workers/) lets you make transformation requests to optimize, resize, and manipulate images stored in remote sources.
+[Cloudflare Images](/images/optimization/transformations/transform-via-workers/) lets you make transformation requests to optimize, resize, and manipulate images stored in remote sources.
 
 To bind Images to your Worker, assign an array of the below object to the `images` key.
 
@@ -688,11 +813,11 @@ To bind KV namespaces to your Worker, assign an array of the below object to the
   - The ID of the KV namespace.
 
 - `preview_id` <Type text="string" /> <MetaInfo text="optional" />
-  - The preview ID of this KV namespace. This option is **required** when using `wrangler dev --remote` to develop against remote resources (but is not required with [remote bindings](/workers/development-testing/#remote-bindings)). If developing locally, this is an optional field. `wrangler dev` will use this ID for the KV namespace. Otherwise, `wrangler dev` will use `id`.
+  - The preview ID of this KV namespace. This option is **required** when using `wrangler dev --remote` to develop against remote resources (but is not required with [remote bindings](/workers/local-development/#remote-bindings)). If developing locally, this is an optional field. `wrangler dev` will use this ID for the KV namespace. Otherwise, `wrangler dev` will use `id`.
 
 :::note
 
-When using Wrangler in the default local development mode, files will be written to local storage instead of the preview or production namespace. Refer to [Local development and testing](/workers/development-testing/) for more details.
+When using Wrangler in the default local development mode, files will be written to local storage instead of the preview or production namespace. Refer to [Local development](/workers/local-development/) for more details.
 
 :::
 
@@ -700,14 +825,75 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[kv_namespaces]]
-binding = "<BINDING_NAME1>"
-id = "<NAMESPACE_ID1>"
+```jsonc
+{
+	"kv_namespaces": [
+		{
+			"binding": "<BINDING_NAME1>",
+			"id": "<NAMESPACE_ID1>",
+		},
+		{
+			"binding": "<BINDING_NAME2>",
+			"id": "<NAMESPACE_ID2>",
+		},
+	],
+}
+```
 
-[[kv_namespaces]]
-binding = "<BINDING_NAME2>"
-id = "<NAMESPACE_ID2>"
+</WranglerConfig>
+
+### AI Search namespaces
+
+[AI Search](/ai-search/) is Cloudflare's managed search service. A [namespace](/ai-search/concepts/namespaces/) is a logical grouping of AI Search instances. The binding grants full access to all instances within the namespace.
+
+To bind AI Search namespaces to your Worker, assign an array of the below object to the `ai_search_namespaces` key.
+
+- `binding` <Type text="string" /> <MetaInfo text="required" />
+  - The binding name used to refer to the AI Search namespace.
+
+- `namespace` <Type text="string" /> <MetaInfo text="required" />
+  - The name of the AI Search namespace. A `default` namespace is created automatically for every account. If the namespace does not exist, Wrangler creates it on deploy.
+
+Example:
+
+<WranglerConfig>
+
+```jsonc
+{
+	"ai_search_namespaces": [
+		{
+			"binding": "<BINDING_NAME>",
+			"namespace": "default",
+		},
+	],
+}
+```
+
+</WranglerConfig>
+
+### AI Search instances
+
+To bind directly to a pre-existing [AI Search](/ai-search/) instance in the [default namespace](/ai-search/concepts/namespaces/#default-namespace), assign an array of the below object to the `ai_search` key. This binding does not support namespace-level operations like `list()`, `create()`, or `delete()`.
+
+- `binding` <Type text="string" /> <MetaInfo text="required" />
+  - The binding name used to refer to the AI Search instance.
+
+- `instance_name` <Type text="string" /> <MetaInfo text="required" />
+  - The name of the AI Search instance. Must exist in the default namespace at deploy time.
+
+Example:
+
+<WranglerConfig>
+
+```jsonc
+{
+	"ai_search": [
+		{
+			"binding": "<BINDING_NAME>",
+			"instance_name": "<INSTANCE_NAME>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -731,11 +917,18 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[queues.producers]]
-  binding = "<BINDING_NAME>"
-  queue = "<QUEUE_NAME>"
-  delivery_delay = 60 # Delay messages by 60 seconds before they are delivered to a consumer
+```jsonc
+{
+	"queues": {
+		"producers": [
+			{
+				"binding": "<BINDING_NAME>",
+				"queue": "<QUEUE_NAME>",
+				"delivery_delay": 60, // Delay messages by 60 seconds before they are delivered to a consumer
+			},
+		],
+	},
+}
 ```
 
 </WranglerConfig>
@@ -770,15 +963,22 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[queues.consumers]]
-  queue = "my-queue"
-  max_batch_size = 10
-  max_batch_timeout = 30
-  max_retries = 10
-  dead_letter_queue = "my-queue-dlq"
-  max_concurrency = 5
-  retry_delay = 120 # Delay retried messages by 2 minutes before re-attempting delivery
+```jsonc
+{
+	"queues": {
+		"consumers": [
+			{
+				"queue": "my-queue",
+				"max_batch_size": 10,
+				"max_batch_timeout": 30,
+				"max_retries": 10,
+				"dead_letter_queue": "my-queue-dlq",
+				"max_concurrency": 5,
+				"retry_delay": 120, // Delay retried messages by 2 minutes before re-attempting delivery
+			},
+		],
+	},
+}
 ```
 
 </WranglerConfig>
@@ -799,11 +999,11 @@ To bind R2 buckets to your Worker, assign an array of the below object to the `r
   - The jurisdiction where this R2 bucket is located, if a jurisdiction has been specified. Refer to [Jurisdictional Restrictions](/r2/reference/data-location/#jurisdictional-restrictions).
 
 - `preview_bucket_name` <Type text="string" /> <MetaInfo text="optional" />
-  - The preview name of this R2 bucket. If provided, `wrangler dev` will use this name for the R2 bucket. Otherwise, it will use `bucket_name`. This option is required when using `wrangler dev --remote` (but is not required with [remote bindings](/workers/development-testing/#remote-bindings)).
+  - The preview name of this R2 bucket. If provided, `wrangler dev` will use this name for the R2 bucket. Otherwise, it will use `bucket_name`. This option is required when using `wrangler dev --remote` (but is not required with [remote bindings](/workers/local-development/#remote-bindings)).
 
 :::note
 
-When using Wrangler in the default local development mode, files will be written to local storage instead of the preview or production bucket. Refer to [Local development and testing](/workers/development-testing/) for more details.
+When using Wrangler in the default local development mode, files will be written to local storage instead of the preview or production bucket. Refer to [Local development](/workers/local-development/) for more details.
 
 :::
 
@@ -811,14 +1011,19 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[r2_buckets]]
-binding = "<BINDING_NAME1>"
-bucket_name = "<BUCKET_NAME1>"
-
-[[r2_buckets]]
-binding = "<BINDING_NAME2>"
-bucket_name = "<BUCKET_NAME2>"
+```jsonc
+{
+	"r2_buckets": [
+		{
+			"binding": "<BINDING_NAME1>",
+			"bucket_name": "<BUCKET_NAME1>",
+		},
+		{
+			"binding": "<BINDING_NAME2>",
+			"bucket_name": "<BUCKET_NAME2>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -839,10 +1044,15 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[vectorize]]
-binding = "<BINDING_NAME>"
-index_name = "<INDEX_NAME>"
+```jsonc
+{
+	"vectorize": [
+		{
+			"binding": "<BINDING_NAME>",
+			"index_name": "<INDEX_NAME>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -867,11 +1077,16 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[services]]
-binding = "<BINDING_NAME>"
-service = "<WORKER_NAME>"
-entrypoint = "<ENTRYPOINT_NAME>"
+```jsonc
+{
+	"services": [
+		{
+			"binding": "<BINDING_NAME>",
+			"service": "<WORKER_NAME>",
+			"entrypoint": "<ENTRYPOINT_NAME>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -896,10 +1111,15 @@ Example:
 
 <WranglerConfig>
 
-```toml
-[[analytics_engine_datasets]]
-binding = "<BINDING_NAME>"
-dataset = "<DATASET_NAME>"
+```jsonc
+{
+	"analytics_engine_datasets": [
+		{
+			"binding": "<BINDING_NAME>",
+			"dataset": "<DATASET_NAME>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -920,14 +1140,19 @@ Example of a Wrangler configuration file that includes an mTLS certificate bindi
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[mtls_certificates]]
-binding = "<BINDING_NAME1>"
-certificate_id = "<CERTIFICATE_ID1>"
-
-[[mtls_certificates]]
-binding = "<BINDING_NAME2>"
-certificate_id = "<CERTIFICATE_ID2>"
+```jsonc
+{
+	"mtls_certificates": [
+		{
+			"binding": "<BINDING_NAME1>",
+			"certificate_id": "<CERTIFICATE_ID1>",
+		},
+		{
+			"binding": "<BINDING_NAME2>",
+			"certificate_id": "<CERTIFICATE_ID2>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -950,9 +1175,53 @@ Example:
 
 <WranglerConfig>
 
-```toml
-[ai]
-binding = "AI" # available in your Worker code on `env.AI`
+```jsonc
+{
+	"ai": {
+		"binding": "AI", // available in your Worker code on `env.AI`
+	},
+}
+```
+
+</WranglerConfig>
+
+### Workflows
+
+[Workflows](/workflows/) allow you to build durable, multi-step applications using the Workers platform. A Workflow binding enables your Worker to create and manage Workflow instances programmatically.
+
+To bind Workflows to your Worker, assign an array of the below object to the `workflows` key.
+
+- `binding` <Type text="string" /> <MetaInfo text="required" />
+  - The binding name used to refer to the Workflow in your Worker. The binding must be [a valid JavaScript variable name](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#variables). For example, `binding = "MY_WORKFLOW"` would be a valid name for the binding.
+
+- `name` <Type text="string" /> <MetaInfo text="required" />
+  - The name of the Workflow.
+
+- `class_name` <Type text="string" /> <MetaInfo text="required" />
+  - The name of the exported Workflow class. The `class_name` must match the name of the Workflow class exported from your Worker code.
+
+- `script_name` <Type text="string" /> <MetaInfo text="optional" />
+  - The name of the Worker script where the Workflow class is defined. Only required if the Workflow is defined in a different Worker than the one the binding is configured on.
+
+- `schedules` <Type text="string[]" /> <MetaInfo text="optional" />
+  - A list of cron schedules that create new instances of this Workflow automatically.
+  - Use this when you want to run a Workflow on a recurring interval without defining top-level `triggers.crons` and a separate `scheduled` handler.
+  - Use a Wrangler release that supports Workflow schedules. If your local schema does not recognize `schedules`, update Wrangler first.
+
+Example:
+
+<WranglerConfig>
+
+```jsonc
+{
+	"workflows": [
+		{
+			"binding": "<BINDING_NAME>",
+			"name": "<WORKFLOW_NAME>",
+			"class_name": "<CLASS_NAME>",
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -985,8 +1254,15 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-assets = { directory = "./public", binding = "ASSETS", html_handling = "force-trailing-slash", not_found_handling = "404-page" }
+```jsonc
+{
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS",
+		"html_handling": "force-trailing-slash",
+		"not_found_handling": "404-page",
+	},
+}
 ```
 
 </WranglerConfig>
@@ -995,14 +1271,17 @@ You can also configure `run_worker_first` with an array of route patterns:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[assets]
-directory = "./public"
-binding = "ASSETS"
-run_worker_first = [
-  "/api/*",        # API calls go to Worker first
-  "!/api/docs/*"   # EXCEPTION: For /api/docs/*, try static assets first
-]
+```jsonc
+{
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS",
+		"run_worker_first": [
+			"/api/*", // API calls go to Worker first
+			"!/api/docs/*", // EXCEPTION: For /api/docs/*, try static assets first
+		],
+	},
+}
 ```
 
 </WranglerConfig>
@@ -1020,7 +1299,7 @@ The following options are available:
 
 - `image` <Type text="string" /> <MetaInfo text="required" />
   - The image to use for the container. This can either be a local path to a `Dockerfile`, in which case `wrangler deploy` will
-    build and push the image, or it can be an image URL. Currently, only the Cloudflare Registry is a supported registry.
+    build and push the image, or it can be an image reference. Supported registries are the Cloudflare Registry, Docker Hub, Amazon ECR, and Google Artifact Registry. For more information, refer to [Image Management](/containers/platform-details/image-management/).
 
 - `class_name` <Type text="string" /> <MetaInfo text="required" />
   - The corresponding Durable Object class name. This will make this Durable Object a container-enabled Durable Object
@@ -1051,7 +1330,7 @@ The following options are available:
   - Build-time variables, equivalent to using `--build-arg` with `docker build`. If you want to provide environment variables to your container at _runtime_, you should [use secret bindings or `envVars` on the Container class](/containers/examples/env-vars-and-secrets/).
 
 - `rollout_active_grace_period` <Type text="number" /> <MetaInfo text="optional" />
-  - The minimum number of seconds to wait before an active container instance becomes eligible for updating during a [rollout](/containers/faq#how-do-container-updates-and-rollouts-work). At that point, the container will be sent at `SIGTERM` and still has 15 minutes to shut down before it is forcibly killed and updated.
+  - The minimum number of seconds to wait before an active container instance becomes eligible for updating during a [rollout](/containers/platform-details/rollouts/). At that point, the container will be sent a `SIGTERM` signal and still has 15 minutes to shut down before it is forcibly killed and updated.
   - Defaults to `0`.
 
 - `rollout_step_percentage` <Type text="number | number[]" /> <MetaInfo text="optional" />
@@ -1061,23 +1340,58 @@ The following options are available:
   - Defaults to `[10, 100]`.
   - This can be overridden ad hoc by deploying with the `--containers-rollout=immediate` flag, which will roll out to 100% of instances in one step. Note that flag will not override `rollout_active_grace_period`, if configured.
 
+- `ssh` <Type text="object" /> <MetaInfo text="optional" />
+  - Configuration for SSH through Wrangler. Refer to [SSH](#ssh).
+
+- `wrangler_ssh` <Type text="object" /> <MetaInfo text="optional deprecated, use `ssh`" />
+  - Deprecated alias for `ssh`. Still supported for backward compatibility.
+
+- `authorized_keys` <Type text="object[]" /> <MetaInfo text="optional" />
+  - Public keys that should be added to the Container's `authorized_keys` file.
+
+- `constraints` <Type text="object" /> <MetaInfo text="optional" />
+  - Placement constraints for the container. Refer to [Containers placement](/containers/platform-details/placement/) for details.
+
+- `constraints.regions` <Type text="string[]" /> <MetaInfo text="optional" />
+  - Limit container placement to specific geographic regions. Valid values: `"ENAM"`, `"WNAM"`, `"EEUR"`, `"WEUR"`, `"APAC"`, `"SAM"`, `"ME"`, `"OC"`, `"AFR"`.
+
+- `constraints.jurisdiction` <Type text="string" /> <MetaInfo text="optional" />
+  - Restrict containers to compliance boundaries. Valid values: `"eu"`, `"fedramp"`.
+
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[containers]]
-class_name = "MyContainer"
-image = "./Dockerfile"
-max_instances = 10
-instance_type = "basic" # Optional, defaults to "lite"
-image_vars = { FOO = "BAR" }
-
-[[durable_objects.bindings]]
-name = "MY_CONTAINER"
-class_name = "MyContainer"
-
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["MyContainer"]
+```jsonc
+{
+	"containers": [
+		{
+			"class_name": "MyContainer",
+			"image": "./Dockerfile",
+			"max_instances": 10,
+			"instance_type": "basic", // Optional, defaults to "lite"
+			"image_vars": {
+				"FOO": "BAR",
+			},
+			"constraints": {
+				"regions": ["ENAM", "WNAM"],
+				"jurisdiction": "fedramp",
+			},
+		},
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "MY_CONTAINER",
+				"class_name": "MyContainer",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["MyContainer"],
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -1100,13 +1414,49 @@ The following options are available:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[[containers]]
-image = "./Dockerfile"
-instance_type = { vcpu = 1, memory_mib = 1024, disk_mb = 4000 }
+```jsonc
+{
+	"containers": [
+		{
+			"image": "./Dockerfile",
+			"instance_type": {
+				"vcpu": 1,
+				"memory_mib": 1024,
+				"disk_mb": 4000,
+			},
+		},
+	],
+}
 ```
 
 </WranglerConfig>
+
+<span id="wrangler-ssh"></span>
+
+### SSH
+
+Configuration for SSH access to a Container instance through Wrangler. For a guide on connecting to Containers via SSH, refer to [SSH](/containers/ssh/).
+
+The following options are available:
+
+- `enabled` <Type text="boolean" /> <MetaInfo text="optional" />
+  - Whether SSH through Wrangler is enabled. Defaults to `true`. Set to `false` to disable SSH access.
+
+- `port` <Type text="number" /> <MetaInfo text="optional" />
+  - The port for the SSH service to run on. Defaults to `22`.
+
+### Authorized keys
+
+An authorized key is a public key that can be used to SSH into a Container.
+
+The following are properties of a key:
+
+- `name` <Type text="string" /> <MetaInfo text="required" />
+  - The display name of the key.
+
+- `public_key` <Type text="string" /> <MetaInfo text="required" />
+  - The public key itself.
+  - Currently only the `ssh-ed25519` key type is supported.
 
 ## Bundling
 
@@ -1135,10 +1485,16 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-rules = [
-  { type = "Text", globs = ["**/*.md"], fallthrough = true }
-]
+```jsonc
+{
+	"rules": [
+		{
+			"type": "Text",
+			"globs": ["**/*.md"],
+			"fallthrough": true,
+		},
+	],
+}
 ```
 
 </WranglerConfig>
@@ -1177,9 +1533,12 @@ To fix this, you can exclude certain files from being included. To do this use t
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[python_modules]
-excludes = ["**/*.pyc", "**/__pycache__"]
+```jsonc
+{
+	"python_modules": {
+		"excludes": ["**/*.pyc", "**/__pycache__"],
+	},
+}
 ```
 
 </WranglerConfig>
@@ -1218,25 +1577,55 @@ You can configure various aspects of local development, such as the local protoc
 
 - `container_engine` <Type text="string" /> <MetaInfo text="optional" />
   - Used for local development of [Containers](/containers/local-dev). Wrangler will attempt to automatically find the correct socket to use to communicate with your container engine. If that does not work (usually surfacing as an `internal error` when attempting to connect to your Container), you can try setting the socket path using this option. You can also set this via the environment variable `DOCKER_HOST`.
-    Example:
 
 - `generate_types` <Type text="boolean" /> <MetaInfo text="optional" />
   - Generate types from your Worker configuration. Defaults to `false`.
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[dev]
-ip = "192.168.1.1"
-port = 8080
-local_protocol = "http"
+```jsonc
+{
+	"dev": {
+		"ip": "192.168.1.1",
+		"port": 8080,
+		"local_protocol": "http",
+	},
+}
 ```
 
 </WranglerConfig>
 
-### Secrets
+## Secrets
 
-[Secrets](/workers/configuration/secrets/) are a type of binding that allow you to [attach encrypted text values](/workers/wrangler/commands/#secret) to your Worker.
+[Secrets](/workers/configuration/secrets/) are a type of binding that allow you to [attach encrypted text values](/workers/wrangler/commands/general/#secret) to your Worker.
+
+### `secrets` configuration property
+
+The `secrets` configuration property lets you declare the secret names your Worker requires in your Wrangler configuration file. Required secrets are validated during local development and deploy, and used as the source of truth for type generation.
+
+<WranglerConfig>
+
+```jsonc
+{
+	"secrets": {
+		"required": ["API_KEY", "DB_PASSWORD"],
+	},
+}
+```
+
+</WranglerConfig>
+
+**Type generation**
+
+When `secrets` is defined at any config level, `wrangler types` generates typed bindings from the names listed in `secrets.required` and no longer infers secret names from `.dev.vars` or `.env` files. This lets you run type generation in environments where those files are not present.
+
+Per-environment secrets are supported. Each named environment produces its own interface, and the aggregated `Env` type marks secrets that only appear in some environments as optional.
+
+**Deploy**
+
+When `secrets` is defined, `wrangler deploy` and `wrangler versions upload` validate that all secrets in `secrets.required` are configured on the Worker before the operation succeeds. If any required secrets are missing, the command fails with an error listing which secrets need to be set.
+
+### Local development
 
 <Render file="secrets-in-dev" product="workers" />
 
@@ -1250,9 +1639,12 @@ You can configure Wrangler to replace all calls to import a particular package w
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[alias]
-"foo" = "./replacement-module-filepath"
+```jsonc
+{
+	"alias": {
+		"foo": "./replacement-module-filepath",
+	},
+}
 ```
 
 </WranglerConfig>
@@ -1269,6 +1661,18 @@ import { bar } from "foo";
 console.log(bar); // returns "baz"
 ```
 
+### Bundling issues
+
+When Wrangler bundles your Worker, it might fail to resolve dependencies. Setting up an alias for such dependencies is a simple way to fix the issue.
+
+However, before doing so, verify that the package is correctly installed in your project, either as a direct dependency in `package.json` or as a transitive dependency.
+
+If an alias is the correct solution for your dependency issue, you have several options:
+
+- **Alternative implementation** — Implement the module's logic in a Worker-compatible manner, ensuring that all the functionality remains intact.
+- **No-op module** — If the module's logic is unused or irrelevant, point the alias to an empty file. This makes the module a no-op while fixing the bundling issue.
+- **Runtime error** — If the module's logic is unused and the Worker should not attempt to use it (for example, because of security vulnerabilities), point the alias to a file with a single top-level `throw` statement. This fixes the bundling issue while ensuring the module is never actually used.
+
 ### Example: Aliasing dependencies from NPM
 
 You can use module aliasing to provide an implementation of an NPM package that does not work on Workers — even if you only rely on that NPM package indirectly, as a dependency of one of your Worker's dependencies.
@@ -1281,9 +1685,12 @@ You can alias all imports of `node-fetch` to instead point directly to the `fetc
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[alias]
-"node-fetch" = "./fetch-polyfill"
+```jsonc
+{
+	"alias": {
+		"node-fetch": "./fetch-polyfill",
+	},
+}
 ```
 
 </WranglerConfig>
@@ -1300,9 +1707,12 @@ For example, let's say the NPM package you rely on calls [`fs.readFile`](https:/
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[alias]
-"fs" = "./fs-polyfill"
+```jsonc
+{
+	"alias": {
+		"fs": "./fs-polyfill",
+	},
+}
 ```
 
 </WranglerConfig>
@@ -1320,15 +1730,16 @@ In many cases, this allows you to work provide just enough of an API to make a d
 [Source maps](/workers/observability/source-maps/) translate compiled and minified code back to the original code that you wrote. Source maps are combined with the stack trace returned by the JavaScript runtime to present you with a stack trace.
 
 - `upload_source_maps` <Type text="boolean" />
-  - When `upload_source_maps` is set to `true`, Wrangler will automatically generate and upload source map files when you run [`wrangler deploy`](/workers/wrangler/commands/#deploy) or [`wrangler versions deploy`](/workers/wrangler/commands/#versions-deploy).
+  - When `upload_source_maps` is set to `true`, Wrangler will automatically generate and upload source map files when you run [`wrangler deploy`](/workers/wrangler/commands/general/#deploy) or [`wrangler versions deploy`](/workers/wrangler/commands/general/#versions-deploy).
 
 Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-upload_source_maps = true
-
+```jsonc
+{
+	"upload_source_maps": true,
+}
 ```
 
 </WranglerConfig>
@@ -1352,11 +1763,14 @@ Example:
 
 <WranglerConfig>
 
-```toml title="wrangler.toml"
-[site]
-bucket = "./public"
-include = ["upload_dir"]
-exclude = ["ignore_dir"]
+```jsonc
+{
+	"site": {
+		"bucket": "./public",
+		"include": ["upload_dir"],
+		"exclude": ["ignore_dir"],
+	},
+}
 ```
 
 </WranglerConfig>
@@ -1439,15 +1853,22 @@ A common example of using a redirected configuration is where a custom build too
 
   <WranglerConfig>
 
-  ```toml title="wrangler.toml"
-  name = "my-worker"
-  main = "src/index.ts"
-
-  [vars]
-  MY_VARIABLE = "production variable"
-
-  [env.staging.vars]
-  MY_VARIABLE = "staging variable"
+  ```jsonc
+  {
+  	"$schema": "./node_modules/wrangler/config-schema.json",
+  	"name": "my-worker",
+  	"main": "src/index.ts",
+  	"vars": {
+  		"MY_VARIABLE": "production variable",
+  	},
+  	"env": {
+  		"staging": {
+  			"vars": {
+  				"MY_VARIABLE": "staging variable",
+  			},
+  		},
+  	},
+  }
   ```
 
   </WranglerConfig>
@@ -1464,7 +1885,12 @@ A common example of using a redirected configuration is where a custom build too
   It also creates a `.wrangler/deploy/config.json` file that redirects Wrangler to the new, generated deployment configuration file:
 
   <FileTree>
-  	- dist - index.js - wrangler.jsonc - .wrangler - deploy - config.json
+		- dist/
+			- index.js
+			- wrangler.jsonc
+		- .wrangler/
+			- deploy/
+				- config.json
   </FileTree>
 
 The generated `dist/wrangler.jsonc` might contain:

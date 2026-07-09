@@ -6,8 +6,8 @@ description: Track and log Workers on invocation by assigning a Tail Worker to
   your projects.
 sidebar:
   order: 4
-  badge:
-    text: Beta
+products:
+  - workers
 ---
 
 import { WranglerConfig } from "~/components";
@@ -96,8 +96,14 @@ The following Worker code is an example of what the `events` object may look lik
 
 <WranglerConfig>
 
-```toml
-tail_consumers = [{service = "<TAIL_WORKER_NAME>"}]
+```jsonc
+{
+	"tail_consumers": [
+		{
+			"service": "<TAIL_WORKER_NAME>"
+		}
+	]
+}
 ```
 
 </WranglerConfig>
@@ -135,5 +141,5 @@ Refer to the [Analytics Engine documentation](/analytics/analytics-engine/) for 
 - [`tail()`](/workers/runtime-apis/handlers/tail/) Handler API docs - Learn how to set up a `tail()` handler in your Worker.
 - [Analytics Engine](/analytics/analytics-engine/) - Write custom analytics from your Worker for high-cardinality, time-series queries.
 - [Errors and exceptions](/workers/observability/errors/) - Review common Workers errors.
-- [Local development and testing](/workers/development-testing/) - Develop and test you Workers locally.
+- [Local development](/workers/local-development/) - Develop and test your Workers locally.
 - [Source maps and stack traces](/workers/observability/source-maps) - Learn how to enable source maps and generate stack traces for Workers.

@@ -1,10 +1,14 @@
 ---
 pcx_content_type: concept
+products:
+  - magic-transit
 title: Anti-replay protection
 head: []
 description: If you use Magic Transit and anycast IPsec tunnels, disable anti-replay protection. Review the information to learn more.
 sidebar:
   order: 1
+tags:
+  - IPsec
 ---
 
 import { Render } from "~/components";
@@ -17,3 +21,7 @@ import { Render } from "~/components";
 		productPath: "/magic-transit/how-to/configure-tunnel-endpoints/#add-tunnels",
 	}}
 />
+
+## Troubleshooting
+
+If you're experiencing tunnel instability or packet drops related to anti-replay protection, refer to [Troubleshoot tunnel health](/magic-transit/troubleshooting/tunnel-health/#ipsec-tunnel-instability-or-packet-drops).

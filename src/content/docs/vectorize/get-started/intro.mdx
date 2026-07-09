@@ -1,8 +1,12 @@
 ---
 title: Introduction to Vectorize
+description: Create your first Vectorize index, connect a Worker, and run a similarity search.
 pcx_content_type: get-started
 sidebar:
   order: 2
+products:
+  - vectorize
+  - workers
 ---
 
 import { Render, PackageManagers, WranglerConfig } from "~/components";
@@ -120,10 +124,15 @@ To bind your index to your Worker, add the following to the end of your Wrangler
 
 <WranglerConfig>
 
-```toml
-[[vectorize]]
-binding = "VECTORIZE" # available in your Worker on env.VECTORIZE
-index_name = "tutorial-index"
+```jsonc
+{
+	"vectorize": [
+		{
+			"binding": "VECTORIZE", // available in your Worker on env.VECTORIZE
+			"index_name": "tutorial-index"
+		}
+	]
+}
 ```
 
 </WranglerConfig>

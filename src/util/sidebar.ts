@@ -6,18 +6,31 @@ import { externalLinkArrow } from "~/plugins/rehype/external-links";
 
 type Link = Extract<StarlightRouteData["sidebar"][0], { type: "link" }> & {
 	order?: number;
-	icon?: { lottieLink: string };
 };
 type Group = Extract<StarlightRouteData["sidebar"][0], { type: "group" }> & {
 	order?: number;
-	icon?: { lottieLink: string };
+	hasActivePage?: boolean;
 };
 
 export type SidebarEntry = Link | Group;
 type Badge = Link["badge"];
 
-const products = await getCollection("products");
+const directory = await getCollection("directory");
+const productAvailability = await getCollection("product-availability");
 const sidebars = new Map<string, Group>();
+
+// Build URL → beta badge map from directory entries + product availability
+const betaBadgeUrls = new Map<string, Badge>();
+for (const dirEntry of directory) {
+	const availabilityId = dirEntry.data.id;
+	const availEntry = productAvailability.find((e) => e.id === availabilityId);
+	if (availEntry?.data.availability?.toLowerCase() === "beta") {
+		betaBadgeUrls.set(dirEntry.data.entry.url, {
+			text: "Beta",
+			variant: "caution",
+		});
+	}
+}
 
 export async function getSidebar(context: AstroGlobal) {
 	const pathname = context.url.pathname;
@@ -89,25 +102,39 @@ export async function generateSidebar(group: Group) {
 
 	group.entries.sort(sortBySidebarOrder);
 
-	if (group.entries[0].type === "link") {
+	const NO_LLM_RESOURCES = new Set(["docs-for-agents"]);
+
+	if (group.entries[0].type === "link" && !NO_LLM_RESOURCES.has(group.label)) {
 		group.entries[0].label = "Overview";
 	}
 
-	const product = products.find((p) => p.id === group.label);
-	if (product && product.data.product.group === "Developer platform") {
+	const product = NO_LLM_RESOURCES.has(group.label)
+		? undefined
+		: directory.find((p) => p.id === group.label);
+	if (product) {
 		const links = [
-			["llms.txt", "/llms.txt"],
-			["prompt.txt", "/workers/prompt.txt"],
-			[`${product.data.name} llms-full.txt`, `/${product.id}/llms-full.txt`],
-			["Developer Platform llms-full.txt", "/developer-platform/llms-full.txt"],
+			["Agent setup", "/agent-setup/"],
+			["Cloudflare Skills", "https://github.com/cloudflare/skills"],
+			["Code Mode MCP Server", "https://github.com/cloudflare/mcp"],
+			[
+				"Domain-specific MCP Servers",
+				"https://github.com/cloudflare/mcp-server-cloudflare",
+			],
+			[`${product.data.name} llms.txt`, `${product.data.entry.url}llms.txt`],
+			[
+				`${product.data.name} llms-full.txt`,
+				`${product.data.entry.url}llms-full.txt`,
+			],
+			["Cloudflare Docs llms.txt", "/llms.txt"],
+			["Cloudflare Docs llms-full.txt", "/llms-full.txt"],
 		];
 
 		group.entries.push({
 			type: "group",
-			label: "LLM resources",
+			label: "Agent resources",
 			entries: links.map(([label, href]) => ({
 				type: "link",
-				label,
+				label: label.concat(externalLinkArrow),
 				href,
 				isCurrent: false,
 				attrs: {
@@ -136,7 +163,11 @@ function setSidebarCurrentEntry(
 			const href = entry.href;
 
 			// Compare with and without trailing slash
-			if (href === pathname || href.slice(0, -1) === href) {
+			const normalizedHref = href.endsWith("/") ? href.slice(0, -1) : href;
+			const normalizedPathname = pathname.endsWith("/")
+				? pathname.slice(0, -1)
+				: pathname;
+			if (normalizedHref === normalizedPathname) {
 				entry.isCurrent = true;
 				return true;
 			}
@@ -146,6 +177,7 @@ function setSidebarCurrentEntry(
 			entry.type === "group" &&
 			setSidebarCurrentEntry(entry.entries, pathname)
 		) {
+			entry.hasActivePage = true;
 			return true;
 		}
 
@@ -208,19 +240,22 @@ async function handleGroup(group: Group): Promise<SidebarEntry> {
 
 	const frontmatter = entry.data;
 
-	group.icon = frontmatter.sidebar.group?.icon ?? frontmatter.icon;
 	group.label = frontmatter.sidebar.group?.label ?? frontmatter.title;
 	group.order = frontmatter.sidebar.order ?? Number.MAX_VALUE;
 
 	if (frontmatter.sidebar.group?.badge) {
 		group.badge = inferBadgeVariant(frontmatter.sidebar.group?.badge);
+	} else {
+		const availabilityBadge = betaBadgeUrls.get(index.href);
+		if (availabilityBadge) {
+			group.badge = availabilityBadge;
+		}
 	}
 
 	if (frontmatter.hideChildren) {
 		return {
 			type: "link",
 			href: index.href,
-			icon: group.icon,
 			label: group.label,
 			order: group.order,
 			attrs: {
@@ -290,12 +325,16 @@ async function handleLink(link: Link): Promise<Link> {
 
 	if (link.badge) {
 		link.badge = inferBadgeVariant(link.badge);
+	} else {
+		const availabilityBadge = betaBadgeUrls.get(link.href);
+		if (availabilityBadge) {
+			link.badge = availabilityBadge;
+		}
 	}
 
 	if (frontmatter.external_link && !frontmatter.sidebar.group?.hideIndex) {
 		return {
 			...link,
-			icon: frontmatter.icon,
 			label: link.label.concat(externalLinkArrow),
 			href: frontmatter.external_link,
 			badge: getBadge(frontmatter.external_link) ?? link.badge,
@@ -339,14 +378,14 @@ export const lookupProductTitle = async (product: string, module: string) => {
 
 		return `${entry?.data?.title} (Learning Paths)`;
 	} else if (product === "1.1.1.1") {
-		const entry = await getEntry("products", "1111");
+		const entry = await getEntry("directory", "1111");
 
-		return entry?.data?.product?.title;
+		return entry?.data?.entry?.title;
 	}
 
-	const entry = await getEntry("products", product);
+	const entry = await getEntry("directory", product);
 
-	return entry?.data?.product?.title ?? "Unknown";
+	return entry?.data?.entry?.title ?? "Unknown";
 };
 
 export function sortBySidebarOrder(a: any, b: any): number {

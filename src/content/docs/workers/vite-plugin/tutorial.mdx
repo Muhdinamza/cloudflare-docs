@@ -1,9 +1,13 @@
 ---
 pcx_content_type: tutorial
+difficulty: Beginner
 title: Tutorial - React SPA with an API
 sidebar:
   order: 2
 description: Create a React SPA with an API Worker using the Vite plugin
+reviewed: 2025-04-04
+products:
+  - workers
 ---
 
 import { PackageManagers, WranglerConfig } from "~/components";
@@ -60,10 +64,15 @@ Refer to the [API reference](/workers/vite-plugin/reference/api/) for configurat
 
 <WranglerConfig>
 
-```toml
-name = "cloudflare-vite-tutorial"
-compatibility_date = "2025-04-03"
-assets = { not_found_handling = "single-page-application" }
+```jsonc
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "cloudflare-vite-tutorial",
+	"compatibility_date": "$today",
+	"assets": {
+		"not_found_handling": "single-page-application"
+	}
+}
 ```
 
 </WranglerConfig>
@@ -112,7 +121,7 @@ This tutorial, however, will show you how to go a step further and add an API Wo
 	"extends": "./tsconfig.node.json",
 	"compilerOptions": {
 		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
-		"types": ["@cloudflare/workers-types/2023-07-01", "vite/client"],
+		"types": ["@cloudflare/workers-types", "vite/client"],
 	},
 	"include": ["worker"],
 }
@@ -133,11 +142,16 @@ This tutorial, however, will show you how to go a step further and add an API Wo
 
 <WranglerConfig>
 
-```toml
-name = "cloudflare-vite-tutorial"
-compatibility_date = "2025-04-03"
-assets = { not_found_handling = "single-page-application" }
-main = "./worker/index.ts"
+```jsonc
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "cloudflare-vite-tutorial",
+	"compatibility_date": "$today",
+	"assets": {
+		"not_found_handling": "single-page-application"
+	},
+	"main": "./worker/index.ts"
+}
 ```
 
 </WranglerConfig>
@@ -175,11 +189,19 @@ This opts out of interpreting the `Sec-Fetch-Mode` header.
 
 <WranglerConfig>
 
-```toml
-name = "cloudflare-vite-tutorial"
-compatibility_date = "2025-04-03"
-assets = { not_found_handling = "single-page-application", run_worker_first = ["/api/*"] }
-main = "./worker/index.ts"
+```jsonc
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "cloudflare-vite-tutorial",
+	"compatibility_date": "$today",
+	"assets": {
+		"not_found_handling": "single-page-application",
+		"run_worker_first": [
+			"/api/*"
+		]
+	},
+	"main": "./worker/index.ts"
+}
 ```
 
 </WranglerConfig>
@@ -265,7 +287,7 @@ npm run build
 If you inspect the `dist` directory, you will see that it contains two subdirectories:
 
 - `client` - the client code that runs in the browser
-- `cloudflare-vite-tutorial` - the Worker code alongside the output `wrangler.json` configuration file
+- `cloudflare_vite_tutorial` - the Worker code alongside the output `wrangler.json` configuration file
 
 ### Preview your application
 
